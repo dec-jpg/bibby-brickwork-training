@@ -1,0 +1,10 @@
+{
+  "company": "Bibby Brickwork Limited",
+  "short": "Bibby Brickwork",
+  "portal": "Bibby Brickwork Training",
+  "colour": "#a33a24",
+  "terms": { "op": "operative", "ops": "operatives" },
+  "sites": ["Stone Lodge, Silsden"],
+  "roles": ["Bricklayer", "Labourer", "Supervisor", "Other"],
+  "expected_headcount": 70
+}

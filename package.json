@@ -1,0 +1,16 @@
+{
+  "name": "bibby-dust-training",
+  "version": "1.0.0",
+  "description": "Bibby Brickwork Limited: Construction Dust and Respiratory Protection Training",
+  "main": "server.js",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^5.2.1",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4"
+  }
+}
