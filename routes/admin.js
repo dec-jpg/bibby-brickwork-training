@@ -22,7 +22,7 @@ function row(x) {
     identity_confirmed_by: p.identity_confirmed_by, identity_confirmed_at: p.identity_confirmed_at,
     stage: x.stage, overdue: x.overdue, issued_at: x.issued_at, started_at: e && e.started_at, completed_at: e && e.completed_at, declared_at: e && e.declared_at,
     modules_done: C.modulesDone(e), attempts: x.submitted.length, score: x.best ? x.best.score : null, total: x.best ? x.best.total : null, passed_on: x.pass ? x.pass.number : null,
-    fit: x.fits[0] ? { tested_on: x.fits[0].tested_on, make_model: x.fits[0].make_model } : null, followups: x.followups.length };
+    fit: x.fit ? { tested_on: x.fit.tested_on, make_model: x.fit.make_model, size: x.fit.size, rpe_type: x.fit.rpe_type, method: x.fit.method, tester: x.fit.tester, certificate_ref: x.fit.certificate_ref } : null, fit_status: pdf.fitStatus(x), fit_records: x.fits.length, followups: x.followups.length };
 }
 
 async function link(req) { return `${baseUrl(req)}/c/${await getSetting('link_token')}`; }
@@ -130,10 +130,12 @@ r.post('/people/:id/followups', edit, wrap(async (req, res) => {
 // Face-fit test records: practical records, kept apart from the training record.
 r.post('/people/:id/fit', edit, wrap(async (req, res) => {
   const b = req.body || {};
-  if (!date(b.tested_on)) return res.status(400).json({ error: 'Enter the date of the fit test.' });
-  if (!clean(b.make_model)) return res.status(400).json({ error: 'Enter the make and model of the respirator tested.' });
-  await q('INSERT INTO fit_records (person_id, tested_on, rpe_type, make_model, size, method, tester, certificate_ref, notes, recorded_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-    [req.params.id, b.tested_on, clean(b.rpe_type, 80), clean(b.make_model, 160), clean(b.size, 40), clean(b.method, 40), clean(b.tester, 160), clean(b.certificate_ref, 80), clean(b.notes, 1000), req.user.name]);
+  if (!date(b.tested_on)) return res.status(400).json({ error: 'Enter the date.' });
+  if (b.tested_on > new Date().toISOString().slice(0, 10)) return res.status(400).json({ error: 'The date cannot be in the future.' });
+  if (!clean(b.make_model)) return res.status(400).json({ error: 'Enter the make and model of the respirator.' });
+  const loose = pdf.isLoose({ rpe_type: b.rpe_type });
+  await q('INSERT INTO fit_records (person_id, tested_on, rpe_type, make_model, size, method, tester, certificate_ref, notes, recorded_by, result) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+    [req.params.id, b.tested_on, clean(b.rpe_type, 80), clean(b.make_model, 160), clean(b.size, 40), loose ? '' : clean(b.method, 40), clean(b.tester, 160), clean(b.certificate_ref, 80), clean(b.notes, 1000), req.user.name, !loose && b.result === 'Fail' ? 'Fail' : 'Pass']);
   res.json({ ok: true });
 }));
 r.delete('/fit/:id', edit, wrap(async (req, res) => { await q('DELETE FROM fit_records WHERE id = $1', [req.params.id]); res.json({ ok: true }); }));
@@ -154,13 +156,17 @@ r.get('/evidence-pack.pdf', any, wrap(async (req, res) => {
   res.type('application/pdf').set('Content-Disposition', 'inline; filename="bibby-brickwork-dust-rpe-corrective-action-training-report.pdf"');
   (await pdf.evidencePack()).pipe(res);
 }));
+r.get('/fit-matrix.pdf', any, wrap(async (req, res) => {
+  res.type('application/pdf').set('Content-Disposition', 'inline; filename="bibby-brickwork-face-fit-matrix.pdf"');
+  (await pdf.fitMatrix()).pipe(res);
+}));
 r.get('/register.csv', any, wrap(async (req, res) => {
   const d = await pdf.allData();
   res.type('text/csv').set('Content-Disposition', 'attachment; filename="bibby-brickwork-training-register.csv"').send(csv(d.rows.map(row), [
     { label: 'ID', key: 'ref' }, { label: 'Name', key: 'name' }, { label: 'Mobile', key: 'phone' }, { label: 'Employer', key: 'employer' }, { label: 'Site', key: 'site' }, { label: 'Role', key: 'role' },
     { label: 'Issued', get: x => pdf.dt(x.issued_at) }, { label: 'Commenced', get: x => pdf.dt(x.started_at) }, { label: 'Modules completed', key: 'modules_done' },
     { label: 'Attempts', key: 'attempts' }, { label: 'Score', get: x => (x.score == null ? '' : `${x.score}/${x.total}`) }, { label: 'Training status', get: x => x.stage.label + (x.overdue ? ' (overdue)' : '') },
-    { label: 'Declaration signed', get: x => pdf.dt(x.declared_at) }, { label: 'Completed', get: x => pdf.dt(x.completed_at) }, { label: 'Face-fit record held', get: x => (x.fit ? `${x.fit.make_model} (${pdf.day(x.fit.tested_on)})` : 'None entered') },
+    { label: 'Declaration signed', get: x => pdf.dt(x.declared_at) }, { label: 'Completed', get: x => pdf.dt(x.completed_at) }, { label: 'Face-fit record held', get: x => (x.fit ? `${x.fit.make_model} (${pdf.day(x.fit.tested_on)})` : 'None entered') }, { label: 'Face-fit status', key: 'fit_status' },
   ]));
 }));
 

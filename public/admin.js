@@ -67,9 +67,10 @@
     register: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     course: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
     evidence: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/>',
+    fit: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
     users: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 16 0v1"/>',
   };
-  const NAV = [['', 'Dashboard'], ['register', 'Training register'], ['course', 'Course and approval'], ['evidence', 'HSE evidence pack'], ['users', 'Users', 'admin']];
+  const NAV = [['', 'Dashboard'], ['register', 'Training register'], ['fit', 'Face-fit matrix'], ['course', 'Course and approval'], ['evidence', 'HSE evidence pack'], ['users', 'Users', 'admin']];
   function shell() {
     root.innerHTML = `<div class="ad-shell"><aside class="ad-nav" id="nav"><div class="rail-brand">${brand.logo ? '<div class="logo"><img src="/logo" alt=""></div>' : `<div class="wordmark">${esc(brand.short)}<small>Training</small></div>`}<div class="t">${esc(brand.portal)}</div><div class="s">Dust and RPE training</div></div>
       <nav><div class="nav-label">Training</div>${NAV.filter(n => !n[2] || isAdmin()).map(n => `<a href="#/${n[0]}" data-nav="${n[0]}"><svg class="ic" viewBox="0 0 24 24">${ICONS[n[0]]}</svg>${n[1]}</a>`).join('')}</nav>
@@ -89,7 +90,7 @@
     document.getElementById('ttl').textContent = (NAV.find(n => n[0] === (view === 'person' ? 'register' : view || '')) || NAV[0])[1];
     setMain('<p class="muted">Loading</p>');
     try {
-      if (view === 'register') await register(); else if (view === 'person') await person(id); else if (view === 'course') await coursePage();
+      if (view === 'register') await register(); else if (view === 'person') await person(id); else if (view === 'fit') await fitMatrix(); else if (view === 'course') await coursePage();
       else if (view === 'evidence') await evidence(); else if (view === 'users' && isAdmin()) await users(); else await dashboard();
     } catch (e) { setMain(`<div class="note err">${esc(e.message)}</div>`); }
     window.scrollTo(0, 0);
@@ -119,7 +120,7 @@
         <tr><td>Assessment attempts submitted</td><td><b>${s.attempts}</b></td></tr><tr><td>Passed at the first attempt</td><td><b>${s.first_time}</b></td></tr><tr><td>Passed after reassessment</td><td><b>${s.after_reassessment}</b></td></tr>
         <tr><td>Failed attempts recorded</td><td><b>${s.failed_attempts}</b></td></tr><tr><td>Average score of passing papers</td><td><b>${s.avg_pass_pct == null ? 'No passes yet' : s.avg_pass_pct + '%'}</b></td></tr></tbody></table></div>
       ${s.missed.length ? `<h2>Questions most often answered incorrectly</h2><div class="tablewrap"><table><tbody>${s.missed.map(m => `<tr><td>${esc(m.q)}</td><td style="white-space:nowrap"><b>${m.count}</b> time${m.count > 1 ? 's' : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
-      <h2>Practical records (separate from training)</h2><div class="panel"><p><b>${s.fit_held} of ${s.register}</b> on the register have a face-fit test record entered here.</p><p class="split-note">${SPLIT}</p></div>`);
+      <h2>Practical records (separate from training)</h2><div class="panel"><p><b>${s.fit_held} of ${s.register}</b> on the register have a fit test pass or powered air issued. <a href="#/fit">Open the face-fit matrix</a></p><p class="split-note">${SPLIT}</p></div>`);
   }
 
   // ---------- register ----------
@@ -129,7 +130,7 @@
     setMain(`${notIssued(data.state)}<div class="ad-head"><div><h1>Training register</h1><p class="muted">Everyone who has opened the course link, plus anyone added by the office.</p></div><div>
       ${canEdit() ? '<button class="btn ghost" id="add">Add names</button>' : ''}<a class="btn ghost" href="/api/admin/register.csv">Download CSV</a><a class="btn" href="/api/admin/summary.pdf" target="_blank" rel="noopener">Summary PDF</a></div></div>
       <div class="toolbar"><div class="field"><label>Search</label><input id="fq" type="search" placeholder="Name or ID"></div>
-      <div class="field"><label>Status</label><select id="fs"><option value="">All</option><option value="complete">Complete</option><option value="open">Not yet complete</option><option value="failed">Failed, follow-up needed</option><option value="not_started">Not started</option><option value="nofit">No face-fit record entered</option></select></div>
+      <div class="field"><label>Status</label><select id="fs"><option value="">All</option><option value="complete">Complete</option><option value="open">Not yet complete</option><option value="failed">Failed, follow-up needed</option><option value="not_started">Not started</option><option value="nofit">No face-fit record held</option></select></div>
       <div class="field"><label>Site</label><select id="fsite"><option value="">All sites</option>${sites.map(s => `<option>${esc(s)}</option>`).join('')}</select></div></div>
       <p class="split-note" style="margin-bottom:1rem">${SPLIT}</p><div id="tbl"></div>`);
     const draw = () => {
@@ -173,8 +174,8 @@
         ${a.review_modules.length ? `<p class="small"><b>Additional instruction:</b> ${a.review_modules.map(m => `module ${m.n} ${a.review[m.n] ? 're-read ' + fDT(a.review[m.n]) : 'not yet re-read'}`).join('; ')}${a.review.supervisor ? `; supervisor instruction recorded ${fDT(a.review.supervisor)}` : ''}</p>` : ''}
         ${a.questions.length ? `<details><summary class="small"><b>Questions presented and answers given</b></summary>${a.questions.map(x => `<div class="qa ${x.correct ? 'good' : 'bad'}"><div class="q">${x.n}. ${x.critical ? '(Safety-critical) ' : ''}${esc(x.q)}</div><div class="a">Answered: ${esc(x.given || 'No answer')} · <b>${x.correct ? 'Correct' : 'Incorrect'}</b></div>${x.correct ? '' : `<div class="a">Correct answer: ${esc(x.right)}</div>`}</div>`).join('')}</details>` : ''}</div>`).join('') : '<p class="muted">No assessment started.</p>'}
       <h2>Face-fit test records (separate from training)</h2><p class="split-note" style="margin-bottom:1rem">Entered from the fit test certificate. A fit test covers only the make, model and size tested. Nothing here is created by passing the course.</p>
-      ${p.fit_list.length ? `<div class="tablewrap"><table><thead><tr><th>Tested</th><th>RPE type</th><th>Make, model, size</th><th>Method</th><th>Fit tester</th><th>Certificate</th><th></th></tr></thead><tbody>${p.fit_list.map(f => `<tr><td>${fDate(f.tested_on)}</td><td>${esc(f.rpe_type || '')}</td><td>${esc([f.make_model, f.size].filter(Boolean).join(', '))}</td><td>${esc(f.method || '')}</td><td>${esc(f.tester || '')}</td><td>${esc(f.certificate_ref || '')}</td><td>${canEdit() ? `<button class="btn quiet small" data-delfit="${f.id}">Remove</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">None entered.</p>'}
-      ${canEdit() ? '<p><button class="btn ghost" id="fit">Add face-fit record</button></p>' : ''}
+      ${p.fit_list.length ? `<div class="tablewrap"><table><thead><tr><th>Tested</th><th>RPE type</th><th>Make, model, size</th><th>Method</th><th>Fit tester</th><th>Certificate</th><th>Result</th><th></th></tr></thead><tbody>${p.fit_list.map(f => `<tr><td>${fDate(f.tested_on)}</td><td>${esc(f.rpe_type || '')}</td><td>${esc([f.make_model, f.size].filter(Boolean).join(', '))}</td><td>${esc(f.method || '')}</td><td>${esc(f.tester || '')}</td><td>${esc(f.certificate_ref || '')}</td><td>${/loose|powered/i.test(f.rpe_type || '') ? 'Issued' : f.result === 'Fail' ? '<b style="color:var(--brick)">Fail</b>' : '<b style="color:var(--leaf)">Pass</b>'}</td><td>${canEdit() ? `<button class="btn quiet small" data-delfit="${f.id}">Remove</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">None entered.</p>'}
+      ${canEdit() ? '<p><a class="btn ghost" href="#/fit">Log a test on the face-fit matrix</a></p>' : ''}
       ${isOwner() ? '<p style="margin-top:2rem"><button class="btn quiet small" id="del">Delete this person and their record</button></p>' : ''}`);
     const on = (sel, fn) => { const el = document.getElementById(sel); if (el) el.onclick = fn; };
     on('conf', async () => { await api('/people/' + id, { method: 'PUT', body: { confirm_identity: true } }); person(id); });
@@ -187,14 +188,59 @@
         <div class="row">${field('Carried out by', input('by', me.name))}${field('Position', input('br', ''), 'optional')}</div>${field('Date', input('on', today(), 'date'))}${field('What was covered', '<textarea id="no" rows="4"></textarea>', p.locked ? 'recording additional instruction releases one further attempt' : '')}`, '<button class="btn ghost" data-close>Cancel</button><button class="btn" id="save">Record</button>');
       dlg.querySelector('#save').onclick = async () => { try { const r = await api(`/people/${id}/followups`, { body: { kind: dv('k'), by_name: dv('by'), by_role: dv('br'), happened_on: dv('on'), notes: dv('no') } }); dlg.close(); await person(id); flash(r.unlocked ? 'Recorded. One further assessment attempt has been released.' : 'Recorded.'); } catch (e) { dlgErr(e.message); } };
     });
-    on('fit', () => {
-      openDlg('Add face-fit record', `<div class="row">${field('Date of fit test', input('on', '', 'date'))}${field('RPE type', '<select id="ty"><option>Half-mask with P3 filters</option><option>FFP3 disposable</option><option>Full-face mask</option></select>')}</div>
-        <div class="row">${field('Make and model tested', input('mm', ''))}${field('Size', input('sz', ''))}</div><div class="row">${field('Method', '<select id="me"><option>Qualitative</option><option>Quantitative</option></select>')}${field('Fit tester or provider', input('te', ''))}</div>${field('Certificate reference', input('ce', ''), 'optional')}`, '<button class="btn ghost" data-close>Cancel</button><button class="btn" id="save">Add record</button>');
-      dlg.querySelector('#save').onclick = async () => { try { await api(`/people/${id}/fit`, { body: { tested_on: dv('on'), rpe_type: dv('ty'), make_model: dv('mm'), size: dv('sz'), method: dv('me'), tester: dv('te'), certificate_ref: dv('ce') } }); dlg.close(); person(id); } catch (e) { dlgErr(e.message); } };
-    });
     document.querySelectorAll('[data-delfit]').forEach(b => (b.onclick = async () => { if (confirm('Remove this face-fit record?')) { await api('/fit/' + b.dataset.delfit, { method: 'DELETE' }); person(id); } }));
     on('del', async () => { if (confirm(`Delete ${p.name} and their whole training record? This cannot be undone.`)) { await api('/people/' + id, { method: 'DELETE' }); location.hash = '#/register'; } });
     void st;
+  }
+
+  // ---------- face-fit matrix ----------
+  // Set the details for the session once (date, tester, mask), then log each person with one tap as they are tested.
+  const RPE_TYPES = ['Half-mask with P3 filters', 'FFP3 disposable', 'Full-face mask', 'Powered-air respirator (loose-fitting, no fit test needed)'];
+  const SK = 'bibby_fit_session';
+  const sess = { get() { try { return JSON.parse(localStorage.getItem(SK)) || {}; } catch { return {}; } }, set(v) { try { localStorage.setItem(SK, JSON.stringify(v)); } catch { /* ignore */ } } };
+  async function fitMatrix() {
+    data = await api('/overview');
+    const d0 = sess.get(), s = data.stats;
+    const opt = (list, v) => list.map(o => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    setMain(`<div class="ad-head"><div><h1>Face-fit matrix</h1><p class="muted"><b>${s.fit_held} of ${s.register}</b> on the register have a fit test pass or powered air issued.</p></div><div>
+      ${canEdit() ? '<button class="btn ghost" id="addp">Add a person</button>' : ''}<a class="btn" href="/api/admin/fit-matrix.pdf" target="_blank" rel="noopener">Matrix PDF</a></div></div>
+      ${canEdit() ? `<div class="panel"><h2>Today's session</h2><p class="muted small">Set these once. They are used for every test you log below, and stay filled in on this device.</p>
+        <div class="row" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">${field('Date', input('fd', d0.date || today(), 'date'))}${field('Fit tester or provider', input('ft', d0.tester))}${field('Method', `<select id="fm">${opt(['Qualitative', 'Quantitative'], d0.method)}</select>`)}
+        ${field('RPE type', `<select id="fy">${opt(RPE_TYPES, d0.type)}</select>`)}${field('Make and model', input('fk', d0.make, 'text', 'placeholder="for example JSP Force 8"'))}</div></div>` : ''}
+      <div class="toolbar"><div class="field"><label>Search</label><input id="fq" type="search" placeholder="Name"></div><div class="field"><label>Show</label><select id="fs"><option value="">Everyone</option><option value="none">No record yet</option><option value="done">Record held</option></select></div></div>
+      <p class="split-note" style="margin-bottom:1rem">A fit test covers only the make, model and size tested. Log from the fit test certificate. This matrix is separate from the training record: passing the course does not put anyone on it.</p><div id="tbl"></div>`);
+    const v = id => (document.getElementById(id) || {}).value || '';
+    const session = () => { const x = { date: v('fd'), tester: v('ft'), method: v('fm'), type: v('fy'), make: v('fk') }; sess.set(x); return x; };
+    const draw = () => {
+      const qv = v('fq').toLowerCase(), fs = v('fs'), loose = /loose|powered/i.test(v('fy'));
+      const rows = data.rows.filter(r => (!qv || r.name.toLowerCase().includes(qv)) && (!fs || (fs === 'none' ? !r.fit : !!r.fit)));
+      document.getElementById('tbl').innerHTML = rows.length ? `<div class="tablewrap"><table><thead><tr><th>Name</th><th>Status</th><th>Respirator on record</th><th>Date</th><th>Training</th>${canEdit() ? '<th>Log a test</th>' : ''}</tr></thead><tbody>
+        ${rows.map(r => `<tr><td><a href="#/person/${r.id}"><b>${esc(r.name)}</b></a><div class="muted small">${esc(r.site || '')}</div></td>
+          <td><span class="pill ${r.fit ? 'complete' : r.fit_records ? 'locked' : 'not_started'}">${esc(r.fit_status)}</span></td>
+          <td>${r.fit ? `${esc([r.fit.make_model, r.fit.size].filter(Boolean).join(', '))}<div class="muted small">${esc(r.fit.rpe_type || '')}</div>` : '<span class="muted">None</span>'}</td><td class="small">${r.fit ? fDate(r.fit.tested_on) : ''}</td>
+          <td class="small">${r.stage.key === 'complete' ? 'Complete' : '<span class="muted">Not complete</span>'}</td>
+          ${canEdit() ? `<td style="white-space:nowrap">${loose ? '' : `<input data-size="${r.id}" placeholder="Size" style="width:5.5rem;display:inline-block;margin-right:.4rem">`}<button class="btn small" data-log="${r.id}" data-res="Pass">${loose ? 'Issued' : 'Pass'}</button>${loose ? '' : ` <button class="btn small ghost" data-log="${r.id}" data-res="Fail">Fail</button>`}</td>` : ''}</tr>`).join('')}</tbody></table></div>`
+        : `<div class="tablewrap"><div class="empty"><b>${data.rows.length ? 'Nobody matches that filter' : 'Nobody on the register yet'}</b>${data.rows.length ? '' : 'People appear here when they open the course link, or add them with Add a person.'}</div></div>`;
+      document.querySelectorAll('[data-log]').forEach(b => (b.onclick = async () => {
+        const x = session(), id = b.dataset.log, size = (document.querySelector(`[data-size="${id}"]`) || {}).value || '';
+        if (!x.make) return flash('Enter the make and model in today\'s session first.', 'err');
+        if (!loose && !size && b.dataset.res === 'Pass') return flash('Enter the size that was tested.', 'err');
+        b.disabled = true;
+        try {
+          await api(`/people/${id}/fit`, { body: { tested_on: x.date, rpe_type: x.type, make_model: x.make, size, method: x.method, tester: x.tester, result: b.dataset.res } });
+          const keep = [v('fq'), v('fs')]; data = await api('/overview'); document.getElementById('fq').value = keep[0]; document.getElementById('fs').value = keep[1]; draw();
+          const st2 = data.stats; document.querySelector('.ad-head p.muted').innerHTML = `<b>${st2.fit_held} of ${st2.register}</b> on the register have a fit test pass or powered air issued.`;
+        } catch (e) { b.disabled = false; flash(e.message, 'err'); }
+      }));
+    };
+    ['fq', 'fs', 'fy'].forEach(id => { const el = document.getElementById(id); if (el) el.oninput = draw; });
+    ['fd', 'ft', 'fm', 'fy', 'fk'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', session); });
+    draw();
+    const add = document.getElementById('addp');
+    if (add) add.onclick = () => {
+      openDlg('Add a person', `<p class="muted">For someone being tested who has not opened the course link yet. Their training record joins up when they do, as long as they enter the same name.</p>${field('Names', '<textarea id="names" rows="5" placeholder="One person per line: first name and surname"></textarea>')}<div class="row">${field('Employer', input('emp', brand.name))}${field('Site', input('site', ''))}</div>`, '<button class="btn ghost" data-close>Cancel</button><button class="btn" id="save">Add</button>');
+      dlg.querySelector('#save').onclick = async () => { try { await api('/people', { body: { names: dv('names'), employer: dv('emp'), site: dv('site') } }); dlg.close(); await fitMatrix(); } catch (e) { dlgErr(e.message); } };
+    };
   }
 
   // ---------- the course ----------
