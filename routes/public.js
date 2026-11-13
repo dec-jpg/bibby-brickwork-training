@@ -57,7 +57,7 @@ function view(s) {
 
 r.get('/:link', gate, async (req, res) => {
   res.json({
-    course: { code: course.code, title: course.title, revision: course.revision, pass_mark: course.pass_mark, questions: course.questions_per_attempt,
+    course: { code: course.code, title: course.title, revision: course.revision, minutes: course.minutes, pass_mark: course.pass_mark, questions: course.questions_per_attempt,
       modules: course.modules.map(m => ({ n: m.n, title: m.title, mins: m.mins })), declaration: course.declaration },
     company: client.company, sites: JSON.parse((await getSetting('sites')) || '[]'), roles: client.roles || [],
   });

@@ -103,7 +103,7 @@
     data = await api('/overview');
     const s = data.stats, st = data.state, c = data.course;
     const attention = data.rows.filter(r => ['locked', 'review'].includes(r.stage.key) || r.overdue);
-    const wa = `${brand.name}: ${c.title}. Every operative and supervisor must complete this course. It takes about 40 minutes on your phone.\n${data.link}`;
+    const wa = `${brand.name}: ${c.title}. Every operative and supervisor must complete this course. It takes about ${c.minutes} minutes on your phone.\n${data.link}`;
     setMain(`${notIssued(st)}<div class="ad-head"><div><h1>${esc(c.title)}</h1><p class="muted">${esc(c.code)} · Revision ${c.revision} · ${c.modules} modules · ${c.questions} questions, pass mark ${c.pass_mark}%${st.due_date ? ' · to be completed by ' + fDate(st.due_date) : ''}</p></div></div>
       <div class="stats five">
         <a class="stat" href="#/register"><div class="n">${s.register}</div><div class="l">On the register${s.expected ? ` (of about ${s.expected})` : ''}</div></a>

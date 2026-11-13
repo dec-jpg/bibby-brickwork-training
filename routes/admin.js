@@ -30,7 +30,7 @@ async function link(req) { return `${baseUrl(req)}/c/${await getSetting('link_to
 r.get('/overview', any, wrap(async (req, res) => {
   const d = await pdf.allData();
   res.json({ state: d.state, stats: d.stats, link: await link(req), rows: d.rows.map(row),
-    course: { code: course.code, title: course.title, revision: course.revision, revision_date: course.revision_date, modules: course.modules.length, pass_mark: course.pass_mark, questions: course.questions_per_attempt, bank: course.bank.length },
+    course: { code: course.code, title: course.title, revision: course.revision, revision_date: course.revision_date, minutes: course.minutes, modules: course.modules.length, pass_mark: course.pass_mark, questions: course.questions_per_attempt, bank: course.bank.length },
     sites: JSON.parse((await getSetting('sites')) || '[]') });
 }));
 

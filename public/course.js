@@ -45,7 +45,7 @@
 
   function identify() {
     const c = info.course;
-    render(`<div class="co-hero"><p class="k">${esc(info.company)} · Revision ${c.revision}</p><h1>${esc(c.title)}</h1><p>${c.modules.length} short modules, then an assessment. About 40 minutes. You can stop and come back.</p></div>
+    render(`<div class="co-hero"><p class="k">${esc(info.company)} · Revision ${c.revision}</p><h1>${esc(c.title)}</h1><p>${c.modules.length} short modules, then an assessment. About ${c.minutes} minutes. You can stop and come back.</p></div>
       <h1>Your details</h1><p class="muted">These go on your training record. If you have already started, enter the same name and mobile to carry on.</p>
       <div class="field"><label for="n">First name and surname</label><input id="n" autocomplete="name"></div>
       <div class="field"><label for="p">Mobile number</label><input id="p" type="tel" autocomplete="tel" inputmode="tel"></div>
