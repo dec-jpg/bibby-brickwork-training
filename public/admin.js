@@ -1,4 +1,4 @@
-// Office side: dashboard, register, individual records, the course itself, users.
+// Office side: dashboard, register, individual records, the alert itself, users.
 (() => {
   const root = document.getElementById('root');
   const dlg = document.getElementById('dlg');
@@ -70,7 +70,7 @@
     fit: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
     users: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 16 0v1"/>',
   };
-  const NAV = [['', 'Dashboard'], ['register', 'Training register'], ['fit', 'Face-fit matrix'], ['course', 'Course and approval'], ['evidence', 'HSE evidence pack'], ['users', 'Users', 'admin']];
+  const NAV = [['', 'Dashboard'], ['register', 'Training register'], ['fit', 'Face-fit matrix'], ['course', 'Alert and approval'], ['evidence', 'HSE evidence pack'], ['users', 'Users', 'admin']];
   function shell() {
     root.innerHTML = `<div class="ad-shell"><aside class="ad-nav" id="nav"><div class="rail-brand">${brand.logo ? '<div class="logo"><img src="/logo" alt=""></div>' : `<div class="wordmark">${esc(brand.short)}<small>Training</small></div>`}<div class="t">${esc(brand.portal)}</div><div class="s">Dust and RPE training</div></div>
       <nav><div class="nav-label">Training</div>${NAV.filter(n => !n[2] || isAdmin()).map(n => `<a href="#/${n[0]}" data-nav="${n[0]}"><svg class="ic" viewBox="0 0 24 24">${ICONS[n[0]]}</svg>${n[1]}</a>`).join('')}</nav>
@@ -95,16 +95,16 @@
     } catch (e) { setMain(`<div class="note err">${esc(e.message)}</div>`); }
     window.scrollTo(0, 0);
   }
-  const SPLIT = 'Training status shows course completion only. Passing the course is not a face-fit test and is not evidence of compliance on site. Face-fit records are shown separately.';
-  const notIssued = s => (s.status === 'issued' ? '' : `<div class="note warn">${s.status === 'withdrawn' ? 'The course has been withdrawn. The link is not active.' : 'The course has not been approved and issued yet, so the link is not active.'} ${isOwner() ? '<a href="#/course">Review and approve it</a>.' : 'Safety Simplified reviews and approves it before it goes out.'}</div>`);
+  const SPLIT = 'Training status shows the risk alert only. Signing the alert is not a face-fit test and is not evidence of compliance on site. Face-fit records are shown separately.';
+  const notIssued = s => (s.status === 'issued' ? '' : `<div class="note warn">${s.status === 'withdrawn' ? 'The alert has been withdrawn. The link is not active.' : 'The alert has not been approved and issued yet, so the link is not active.'} ${isOwner() ? '<a href="#/course">Review and approve it</a>.' : 'Safety Simplified reviews and approves it before it goes out.'}</div>`);
 
   // ---------- dashboard ----------
   async function dashboard() {
     data = await api('/overview');
     const s = data.stats, st = data.state, c = data.course;
     const attention = data.rows.filter(r => ['locked', 'review'].includes(r.stage.key) || r.overdue);
-    const wa = `${brand.name}: ${c.title}. Every operative and supervisor must complete this course. It takes about ${c.minutes} minutes on your phone.\n${data.link}`;
-    setMain(`${notIssued(st)}<div class="ad-head"><div><h1>${esc(c.title)}</h1><p class="muted">${esc(c.code)} · Revision ${c.revision} · ${c.modules} modules · ${c.questions} questions, pass mark ${c.pass_mark}%${st.due_date ? ' · to be completed by ' + fDate(st.due_date) : ''}</p></div></div>
+    const wa = `${brand.name}: ${c.title}. Every operative and supervisor must read and sign this risk alert. It takes about ${c.minutes} minutes on your phone.\n${data.link}`;
+    setMain(`${notIssued(st)}<div class="ad-head"><div><h1>${esc(c.title)}</h1><p class="muted">${esc(c.code)} · Revision ${c.revision} · ${c.questions} key questions, all must be correct${st.due_date ? ' · to be completed by ' + fDate(st.due_date) : ''}</p></div></div>
       <div class="stats five">
         <a class="stat" href="#/register"><div class="n">${s.register}</div><div class="l">On the register${s.expected ? ` (of about ${s.expected})` : ''}</div></a>
         <a class="stat accent" href="#/register"><div class="n">${s.complete}</div><div class="l">Training complete</div></a>
@@ -112,13 +112,13 @@
         <a class="stat ${s.locked + s.review ? 'bad' : ''}" href="#/register"><div class="n">${s.locked + s.review}</div><div class="l">Failed, follow-up needed</div></a>
         <a class="stat" href="#/register"><div class="n">${s.not_started}</div><div class="l">Not started</div></a>
       </div>
-      ${st.status === 'issued' ? `<div class="panel"><h2>Course link</h2><p class="muted small">One link for everyone. Send it to the WhatsApp groups. Each person enters their own details and the register builds itself.</p>
+      ${st.status === 'issued' ? `<div class="panel"><h2>Alert link</h2><p class="muted small">One link for everyone. Send it to the WhatsApp groups. Each person enters their own details and the register builds itself.</p>
         <div class="linkbox"><input readonly value="${esc(data.link)}" onclick="this.select()"><button class="btn small" data-copy="${esc(data.link)}">Copy link</button>
         <a class="btn small ghost" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(wa)}">Send on WhatsApp</a><a class="btn small quiet" href="/api/admin/qr.svg" download="course-qr.svg">Download QR</a></div></div>` : ''}
       <h2>Needs attention</h2>${attention.length ? `<div class="flags">${attention.map(r => `<a class="flag red" href="#/person/${r.id}" style="text-decoration:none;color:inherit"><span><b>${esc(r.name)}</b> · ${esc(r.stage.label)}${r.overdue ? ' · overdue' : ''}</span><span class="muted small">${esc(r.site || '')}</span></a>`).join('')}</div>` : '<div class="flags"><div class="flag green">Nobody is waiting on supervisor follow-up.</div></div>'}
-      <h2>Assessment results</h2><div class="tablewrap"><table><tbody>
-        <tr><td>Assessment attempts submitted</td><td><b>${s.attempts}</b></td></tr><tr><td>Passed at the first attempt</td><td><b>${s.first_time}</b></td></tr><tr><td>Passed after reassessment</td><td><b>${s.after_reassessment}</b></td></tr>
-        <tr><td>Failed attempts recorded</td><td><b>${s.failed_attempts}</b></td></tr><tr><td>Average score of passing papers</td><td><b>${s.avg_pass_pct == null ? 'No passes yet' : s.avg_pass_pct + '%'}</b></td></tr></tbody></table></div>
+      <h2>Key question results</h2><div class="tablewrap"><table><tbody>
+        <tr><td>Attempts submitted</td><td><b>${s.attempts}</b></td></tr><tr><td>Correct at the first attempt</td><td><b>${s.first_time}</b></td></tr><tr><td>Correct after a further attempt</td><td><b>${s.after_reassessment}</b></td></tr>
+        <tr><td>Failed attempts recorded</td><td><b>${s.failed_attempts}</b></td></tr></tbody></table></div>
       ${s.missed.length ? `<h2>Questions most often answered incorrectly</h2><div class="tablewrap"><table><tbody>${s.missed.map(m => `<tr><td>${esc(m.q)}</td><td style="white-space:nowrap"><b>${m.count}</b> time${m.count > 1 ? 's' : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
       <h2>Practical records (separate from training)</h2><div class="panel"><p><b>${s.fit_held} of ${s.register}</b> on the register have a fit test pass or powered air issued. <a href="#/fit">Open the face-fit matrix</a></p><p class="split-note">${SPLIT}</p></div>`);
   }
@@ -127,7 +127,7 @@
   async function register() {
     data = await api('/overview');
     const sites = [...new Set(data.rows.map(r => r.site).filter(Boolean))].sort();
-    setMain(`${notIssued(data.state)}<div class="ad-head"><div><h1>Training register</h1><p class="muted">Everyone who has opened the course link, plus anyone added by the office.</p></div><div>
+    setMain(`${notIssued(data.state)}<div class="ad-head"><div><h1>Training register</h1><p class="muted">Everyone who has opened the alert link, plus anyone added by the office.</p></div><div>
       ${canEdit() ? '<button class="btn ghost" id="add">Add names</button>' : ''}<a class="btn ghost" href="/api/admin/register.csv">Download CSV</a><a class="btn" href="/api/admin/summary.pdf" target="_blank" rel="noopener">Summary PDF</a></div></div>
       <div class="toolbar"><div class="field"><label>Search</label><input id="fq" type="search" placeholder="Name or ID"></div>
       <div class="field"><label>Status</label><select id="fs"><option value="">All</option><option value="complete">Complete</option><option value="open">Not yet complete</option><option value="failed">Failed, follow-up needed</option><option value="not_started">Not started</option><option value="nofit">No face-fit record held</option></select></div>
@@ -137,17 +137,17 @@
       const qv = document.getElementById('fq').value.toLowerCase(), fs = document.getElementById('fs').value, site = document.getElementById('fsite').value;
       const rows = data.rows.filter(r => (!qv || (r.name + ' ' + r.ref).toLowerCase().includes(qv)) && (!site || r.site === site) &&
         (!fs || (fs === 'complete' ? r.stage.key === 'complete' : fs === 'open' ? r.stage.key !== 'complete' : fs === 'failed' ? ['locked', 'review'].includes(r.stage.key) : fs === 'nofit' ? !r.fit : r.stage.key === fs)));
-      document.getElementById('tbl').innerHTML = rows.length ? `<div class="tablewrap"><table><thead><tr><th>ID</th><th>Name</th><th>Employer and site</th><th>Commenced</th><th>Modules</th><th>Attempts</th><th>Score</th><th>Training status</th><th>Completed</th><th>Face-fit record</th></tr></thead><tbody>
+      document.getElementById('tbl').innerHTML = rows.length ? `<div class="tablewrap"><table><thead><tr><th>ID</th><th>Name</th><th>Employer and site</th><th>Commenced</th><th>Alert read</th><th>Attempts</th><th>Score</th><th>Training status</th><th>Completed</th><th>Face-fit record</th></tr></thead><tbody>
         ${rows.map(r => `<tr class="click" data-id="${r.id}"><td class="muted small">${esc(r.ref)}</td><td><b>${esc(r.name)}</b><div class="muted small">${esc(r.role || '')}${r.identity_confirmed_by ? ' · identity confirmed' : ''}</div></td><td>${esc(r.employer || '')}<div class="muted small">${esc(r.site || '')}</div></td>
-          <td class="small">${fDT(r.started_at)}</td><td>${r.modules_done}/${data.course.modules}</td><td>${r.attempts || ''}</td><td>${r.score == null ? '' : `${r.score}/${r.total}`}</td><td>${pill(r)}</td><td class="small">${fDT(r.completed_at)}</td>
+          <td class="small">${fDT(r.started_at)}</td><td>${r.modules_done ? 'Yes' : ''}</td><td>${r.attempts || ''}</td><td>${r.score == null ? '' : `${r.score}/${r.total}`}</td><td>${pill(r)}</td><td class="small">${fDT(r.completed_at)}</td>
           <td class="small">${r.fit ? `${esc(r.fit.make_model)}<div class="muted">${fDate(r.fit.tested_on)}</div>` : '<span class="muted">None entered</span>'}</td></tr>`).join('')}</tbody></table></div>`
-        : `<div class="tablewrap"><div class="empty"><b>${data.rows.length ? 'Nobody matches that filter' : 'Nobody on the register yet'}</b>${data.rows.length ? '' : 'People appear here as soon as they open the course link.'}</div></div>`;
+        : `<div class="tablewrap"><div class="empty"><b>${data.rows.length ? 'Nobody matches that filter' : 'Nobody on the register yet'}</b>${data.rows.length ? '' : 'People appear here as soon as they open the alert link.'}</div></div>`;
       document.querySelectorAll('#tbl tr.click').forEach(tr => (tr.onclick = () => { location.hash = '#/person/' + tr.dataset.id; }));
     };
     ['fq', 'fs', 'fsite'].forEach(id => (document.getElementById(id).oninput = draw)); draw();
     const add = document.getElementById('add');
     if (add) add.onclick = () => {
-      openDlg('Add names to the register', `<p class="muted">Add the people you expect to do the course, so anyone who has not opened the link shows as not started. When they open the link and enter the same name, their record joins up.</p>
+      openDlg('Add names to the register', `<p class="muted">Add the people you expect to sign the alert, so anyone who has not opened the link shows as not started. When they open the link and enter the same name, their record joins up.</p>
         ${field('Names', '<textarea id="names" rows="8" placeholder="One person per line: first name and surname"></textarea>')}<div class="row">${field('Employer', input('emp', brand.name))}${field('Site', input('site', ''))}</div>`, '<button class="btn ghost" data-close>Cancel</button><button class="btn" id="save">Add</button>');
       dlg.querySelector('#save').onclick = async () => { try { const r = await api('/people', { body: { names: dv('names'), employer: dv('emp'), site: dv('site') } }); dlg.close(); await register(); flash(`${r.added} added${r.skipped ? `, ${r.skipped} already on the register` : ''}.`); } catch (e) { dlgErr(e.message); } };
     };
@@ -162,18 +162,17 @@
       ${canEdit() ? '<button class="btn ghost" id="edit">Edit details</button>' : ''}<a class="btn" href="/api/admin/people/${p.id}/record.pdf" target="_blank" rel="noopener">Training record PDF</a></div></div>
       <div class="row" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 1.25rem"><div><h2 class="sec">Operative</h2><dl class="info-list">${row('Mobile', esc(p.phone))}${row('Employer', esc(p.employer))}${row('Site', esc(p.site))}${row('Role', esc(p.role))}
         ${row('Identity', p.identity_confirmed_by ? `Confirmed by ${esc(p.identity_confirmed_by)}, ${fDT(p.identity_confirmed_at)}` : (p.source === 'office' ? 'Added by the office' : 'Name and mobile given by the operative') + (canEdit() ? ' <button class="btn small ghost" id="conf">Confirm identity</button>' : ''))}</dl></div>
-      <div><h2 class="sec">Training record</h2><dl class="info-list">${row('Issued', fDT(p.issued_at))}${row('Commenced', fDT(p.started_at))}${row('Modules completed', `${p.modules_done} of ${p.modules.length}`)}
-        ${row('Assessment', p.passed_on ? `Passed on attempt ${p.passed_on}, ${p.score}/${p.total}` : p.attempts ? `Not passed, ${p.attempts} attempt${p.attempts > 1 ? 's' : ''}` : 'Not taken')}
+      <div><h2 class="sec">Training record</h2><dl class="info-list">${row('Issued', fDT(p.issued_at))}${row('Commenced', fDT(p.started_at))}${row('Alert read', p.modules[0].c ? fDT(p.modules[0].c) : (p.modules[0].o ? 'Opened, not yet confirmed as read' : ''))}
+        ${row('Key questions', p.passed_on ? `Passed on attempt ${p.passed_on}, ${p.score}/${p.total}` : p.attempts ? `Not passed, ${p.attempts} attempt${p.attempts > 1 ? 's' : ''}` : 'Not taken')}
         ${row('Declaration', p.declaration ? `Signed ${fDT(p.declaration.at)} as ${esc(p.declaration.name)}<img src="/api/admin/people/${p.id}/signature" alt="Signature" style="height:44px;display:block;margin-top:6px">` : 'Not signed')}${row('Completed', fDT(p.completed_at))}</dl></div></div>
-      ${p.locked ? `<div class="note err">Assessment locked after ${p.attempts} failed attempts. Go through the course with ${esc(p.name.split(' ')[0])} in person, then record the instruction below. That releases one further attempt.</div>` : ''}
-      <h2>Supervisory follow-up</h2>${p.followup_list.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>By</th><th>Notes</th><th>Recorded by</th></tr></thead><tbody>${p.followup_list.map(f => `<tr><td>${fDate(f.happened_on)}</td><td>${{ instruction: 'Additional instruction', chase: 'Reminder to complete', note: 'Note' }[f.kind]}${f.unlocked ? '<div class="muted small">Reassessment released</div>' : ''}</td><td>${esc(f.by_name)}<div class="muted small">${esc(f.by_role || '')}</div></td><td>${esc(f.notes || '')}</td><td class="small muted">${esc(f.recorded_by || '')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Nothing recorded.</p>'}
+      ${p.locked ? `<div class="note err">Questions locked after ${p.attempts} failed attempts. Go through the alert with ${esc(p.name.split(' ')[0])} in person, then record the instruction below. That releases one further attempt.</div>` : ''}
+      <h2>Supervisory follow-up</h2>${p.followup_list.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>By</th><th>Notes</th><th>Recorded by</th></tr></thead><tbody>${p.followup_list.map(f => `<tr><td>${fDate(f.happened_on)}</td><td>${{ instruction: 'Additional instruction', chase: 'Reminder to complete', note: 'Note' }[f.kind]}${f.unlocked ? '<div class="muted small">Questions released again</div>' : ''}</td><td>${esc(f.by_name)}<div class="muted small">${esc(f.by_role || '')}</div></td><td>${esc(f.notes || '')}</td><td class="small muted">${esc(f.recorded_by || '')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Nothing recorded.</p>'}
       ${canEdit() ? '<p><button class="btn ghost" id="fu">Record follow-up</button></p>' : ''}
-      <h2>Modules</h2><div class="tablewrap"><table><thead><tr><th>No.</th><th>Module</th><th>Opened</th><th>Completed</th></tr></thead><tbody>${p.modules.map(m => `<tr><td>${m.n}</td><td>${esc(m.title)}</td><td class="small">${fDT(m.o)}</td><td class="small">${m.c ? fDT(m.c) : '<span class="muted">Not completed</span>'}</td></tr>`).join('')}</tbody></table></div>
-      <h2>Assessment and reassessment history</h2>${p.attempt_list.length ? p.attempt_list.map(a => `<div class="panel"><h2>Attempt ${a.number}: ${!a.submitted_at ? 'in progress' : `${a.score}/${a.total} (${Math.round(a.score / a.total * 100)}%) · ${a.passed ? '<span style="color:var(--leaf)">PASS</span>' : '<span style="color:var(--brick)">FAIL</span>'}`}</h2>
-        <p class="muted small">Started ${fDT(a.started_at)}${a.submitted_at ? ` · submitted ${fDT(a.submitted_at)} · safety-critical questions: ${a.critical_wrong.length ? a.critical_wrong.length + ' incorrect' : 'all correct'}` : ''}</p>
-        ${a.review_modules.length ? `<p class="small"><b>Additional instruction:</b> ${a.review_modules.map(m => `module ${m.n} ${a.review[m.n] ? 're-read ' + fDT(a.review[m.n]) : 'not yet re-read'}`).join('; ')}${a.review.supervisor ? `; supervisor instruction recorded ${fDT(a.review.supervisor)}` : ''}</p>` : ''}
-        ${a.questions.length ? `<details><summary class="small"><b>Questions presented and answers given</b></summary>${a.questions.map(x => `<div class="qa ${x.correct ? 'good' : 'bad'}"><div class="q">${x.n}. ${x.critical ? '(Safety-critical) ' : ''}${esc(x.q)}</div><div class="a">Answered: ${esc(x.given || 'No answer')} · <b>${x.correct ? 'Correct' : 'Incorrect'}</b></div>${x.correct ? '' : `<div class="a">Correct answer: ${esc(x.right)}</div>`}</div>`).join('')}</details>` : ''}</div>`).join('') : '<p class="muted">No assessment started.</p>'}
-      <h2>Face-fit test records (separate from training)</h2><p class="split-note" style="margin-bottom:1rem">Entered from the fit test certificate. A fit test covers only the make, model and size tested. Nothing here is created by passing the course.</p>
+      <h2>Key questions: answers and attempts</h2>${p.attempt_list.length ? p.attempt_list.map(a => `<div class="panel"><h2>Attempt ${a.number}: ${!a.submitted_at ? 'in progress' : `${a.score}/${a.total} (${Math.round(a.score / a.total * 100)}%) · ${a.passed ? '<span style="color:var(--leaf)">PASS</span>' : '<span style="color:var(--brick)">FAIL</span>'}`}</h2>
+        <p class="muted small">Started ${fDT(a.started_at)}${a.submitted_at ? ` · submitted ${fDT(a.submitted_at)}` : ''}</p>
+        ${a.review_modules.length ? `<p class="small"><b>After this attempt:</b> ${a.review_modules.map(m => `alert ${a.review[m.n] ? 'read again ' + fDT(a.review[m.n]) : 'not yet read again'}`).join('; ')}${a.review.supervisor ? `; supervisor instruction recorded ${fDT(a.review.supervisor)}` : ''}</p>` : ''}
+        ${a.questions.length ? `<details><summary class="small"><b>Questions presented and answers given</b></summary>${a.questions.map(x => `<div class="qa ${x.correct ? 'good' : 'bad'}"><div class="q">${x.n}. ${esc(x.q)}</div><div class="a">Answered: ${esc(x.given || 'No answer')} · <b>${x.correct ? 'Correct' : 'Incorrect'}</b></div>${x.correct ? '' : `<div class="a">Correct answer: ${esc(x.right)}</div>`}</div>`).join('')}</details>` : ''}</div>`).join('') : '<p class="muted">Not answered yet.</p>'}
+      <h2>Face-fit test records (separate from training)</h2><p class="split-note" style="margin-bottom:1rem">Entered from the fit test certificate. A fit test covers only the make, model and size tested. Nothing here is created by passing the alert.</p>
       ${p.fit_list.length ? `<div class="tablewrap"><table><thead><tr><th>Tested</th><th>RPE type</th><th>Make, model, size</th><th>Method</th><th>Fit tester</th><th>Certificate</th><th>Result</th><th></th></tr></thead><tbody>${p.fit_list.map(f => `<tr><td>${fDate(f.tested_on)}</td><td>${esc(f.rpe_type || '')}</td><td>${esc([f.make_model, f.size].filter(Boolean).join(', '))}</td><td>${esc(f.method || '')}</td><td>${esc(f.tester || '')}</td><td>${esc(f.certificate_ref || '')}</td><td>${/loose|powered/i.test(f.rpe_type || '') ? 'Issued' : f.result === 'Fail' ? '<b style="color:var(--brick)">Fail</b>' : '<b style="color:var(--leaf)">Pass</b>'}</td><td>${canEdit() ? `<button class="btn quiet small" data-delfit="${f.id}">Remove</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">None entered.</p>'}
       ${canEdit() ? '<p><a class="btn ghost" href="#/fit">Log a test on the face-fit matrix</a></p>' : ''}
       ${isOwner() ? '<p style="margin-top:2rem"><button class="btn quiet small" id="del">Delete this person and their record</button></p>' : ''}`);
@@ -184,9 +183,9 @@
       dlg.querySelector('#save').onclick = async () => { try { await api('/people/' + id, { method: 'PUT', body: { name: dv('n'), phone: dv('ph'), employer: dv('em'), site: dv('si'), role: dv('ro') } }); dlg.close(); person(id); } catch (e) { dlgErr(e.message); } };
     });
     on('fu', () => {
-      openDlg('Record follow-up', `${field('Type', `<select id="k"><option value="instruction">Additional instruction given in person</option><option value="chase">Reminder to complete the course</option><option value="note">Note</option></select>`)}
+      openDlg('Record follow-up', `${field('Type', `<select id="k"><option value="instruction">Additional instruction given in person</option><option value="chase">Reminder to sign the alert</option><option value="note">Note</option></select>`)}
         <div class="row">${field('Carried out by', input('by', me.name))}${field('Position', input('br', ''), 'optional')}</div>${field('Date', input('on', today(), 'date'))}${field('What was covered', '<textarea id="no" rows="4"></textarea>', p.locked ? 'recording additional instruction releases one further attempt' : '')}`, '<button class="btn ghost" data-close>Cancel</button><button class="btn" id="save">Record</button>');
-      dlg.querySelector('#save').onclick = async () => { try { const r = await api(`/people/${id}/followups`, { body: { kind: dv('k'), by_name: dv('by'), by_role: dv('br'), happened_on: dv('on'), notes: dv('no') } }); dlg.close(); await person(id); flash(r.unlocked ? 'Recorded. One further assessment attempt has been released.' : 'Recorded.'); } catch (e) { dlgErr(e.message); } };
+      dlg.querySelector('#save').onclick = async () => { try { const r = await api(`/people/${id}/followups`, { body: { kind: dv('k'), by_name: dv('by'), by_role: dv('br'), happened_on: dv('on'), notes: dv('no') } }); dlg.close(); await person(id); flash(r.unlocked ? 'Recorded. The questions have been released again.' : 'Recorded.'); } catch (e) { dlgErr(e.message); } };
     });
     document.querySelectorAll('[data-delfit]').forEach(b => (b.onclick = async () => { if (confirm('Remove this face-fit record?')) { await api('/fit/' + b.dataset.delfit, { method: 'DELETE' }); person(id); } }));
     on('del', async () => { if (confirm(`Delete ${p.name} and their whole training record? This cannot be undone.`)) { await api('/people/' + id, { method: 'DELETE' }); location.hash = '#/register'; } });
@@ -208,7 +207,7 @@
         <div class="row" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">${field('Date', input('fd', d0.date || today(), 'date'))}${field('Fit tester or provider', input('ft', d0.tester))}${field('Method', `<select id="fm">${opt(['Qualitative', 'Quantitative'], d0.method)}</select>`)}
         ${field('RPE type', `<select id="fy">${opt(RPE_TYPES, d0.type)}</select>`)}${field('Make and model', input('fk', d0.make, 'text', 'placeholder="for example JSP Force 8"'))}</div></div>` : ''}
       <div class="toolbar"><div class="field"><label>Search</label><input id="fq" type="search" placeholder="Name"></div><div class="field"><label>Show</label><select id="fs"><option value="">Everyone</option><option value="none">No record yet</option><option value="done">Record held</option></select></div></div>
-      <p class="split-note" style="margin-bottom:1rem">A fit test covers only the make, model and size tested. Log from the fit test certificate. This matrix is separate from the training record: passing the course does not put anyone on it.</p><div id="tbl"></div>`);
+      <p class="split-note" style="margin-bottom:1rem">A fit test covers only the make, model and size tested. Log from the fit test certificate. This matrix is separate from the training record: passing the alert does not put anyone on it.</p><div id="tbl"></div>`);
     const v = id => (document.getElementById(id) || {}).value || '';
     const session = () => { const x = { date: v('fd'), tester: v('ft'), method: v('fm'), type: v('fy'), make: v('fk') }; sess.set(x); return x; };
     const draw = () => {
@@ -220,7 +219,7 @@
           <td>${r.fit ? `${esc([r.fit.make_model, r.fit.size].filter(Boolean).join(', '))}<div class="muted small">${esc(r.fit.rpe_type || '')}</div>` : '<span class="muted">None</span>'}</td><td class="small">${r.fit ? fDate(r.fit.tested_on) : ''}</td>
           <td class="small">${r.stage.key === 'complete' ? 'Complete' : '<span class="muted">Not complete</span>'}</td>
           ${canEdit() ? `<td style="white-space:nowrap">${loose ? '' : `<input data-size="${r.id}" placeholder="Size" style="width:5.5rem;display:inline-block;margin-right:.4rem">`}<button class="btn small" data-log="${r.id}" data-res="Pass">${loose ? 'Issued' : 'Pass'}</button>${loose ? '' : ` <button class="btn small ghost" data-log="${r.id}" data-res="Fail">Fail</button>`}</td>` : ''}</tr>`).join('')}</tbody></table></div>`
-        : `<div class="tablewrap"><div class="empty"><b>${data.rows.length ? 'Nobody matches that filter' : 'Nobody on the register yet'}</b>${data.rows.length ? '' : 'People appear here when they open the course link, or add them with Add a person.'}</div></div>`;
+        : `<div class="tablewrap"><div class="empty"><b>${data.rows.length ? 'Nobody matches that filter' : 'Nobody on the register yet'}</b>${data.rows.length ? '' : 'People appear here when they open the alert link, or add them with Add a person.'}</div></div>`;
       document.querySelectorAll('[data-log]').forEach(b => (b.onclick = async () => {
         const x = session(), id = b.dataset.log, size = (document.querySelector(`[data-size="${id}"]`) || {}).value || '';
         if (!x.make) return flash('Enter the make and model in today\'s session first.', 'err');
@@ -238,31 +237,31 @@
     draw();
     const add = document.getElementById('addp');
     if (add) add.onclick = () => {
-      openDlg('Add a person', `<p class="muted">For someone being tested who has not opened the course link yet. Their training record joins up when they do, as long as they enter the same name.</p>${field('Names', '<textarea id="names" rows="5" placeholder="One person per line: first name and surname"></textarea>')}<div class="row">${field('Employer', input('emp', brand.name))}${field('Site', input('site', ''))}</div>`, '<button class="btn ghost" data-close>Cancel</button><button class="btn" id="save">Add</button>');
+      openDlg('Add a person', `<p class="muted">For someone being tested who has not opened the alert link yet. Their training record joins up when they do, as long as they enter the same name.</p>${field('Names', '<textarea id="names" rows="5" placeholder="One person per line: first name and surname"></textarea>')}<div class="row">${field('Employer', input('emp', brand.name))}${field('Site', input('site', ''))}</div>`, '<button class="btn ghost" data-close>Cancel</button><button class="btn" id="save">Add</button>');
       dlg.querySelector('#save').onclick = async () => { try { await api('/people', { body: { names: dv('names'), employer: dv('emp'), site: dv('site') } }); dlg.close(); await fitMatrix(); } catch (e) { dlgErr(e.message); } };
     };
   }
 
-  // ---------- the course ----------
+  // ---------- the alert ----------
   async function coursePage() {
     const { course: c, state: s } = await api('/course');
     const ov = await api('/overview');
     const approved = s.status === 'issued';
     setMain(`<div class="ad-head"><div><h1>${esc(c.title)}</h1><p class="muted">${esc(c.code)} · Revision ${c.revision}, dated ${fDate(c.revision_date)} · written by ${esc(c.author)}</p></div></div>
-      <div class="panel"><h2>Review and approval</h2>${approved ? `<p><span class="pill complete">Approved and issued</span></p><p>Approved by <b>${esc(s.approved_by)}</b>${s.approved_role ? ', ' + esc(s.approved_role) : ''} on ${fDT(s.approved_at)}. Issued ${fDT(s.issued_at)}.</p>${isOwner() ? '<button class="btn quiet small" id="wd">Withdraw the course</button>' : ''}`
-        : `<p><span class="pill under_review">${s.status === 'withdrawn' ? 'Withdrawn' : 'Awaiting review'}</span></p><p class="muted">The course link stays inactive until Safety Simplified has read the modules and the question bank below and approved them. The approval is recorded and printed in the HSE evidence pack.</p>
-          ${isOwner() ? `<div class="row">${field('Approved by', input('an', ''), 'name of the person who reviewed it')}${field('Position', input('ar', ''), 'for example CMIOSH, Safety Simplified Ltd')}</div><label class="check" style="margin-bottom:1rem"><input type="checkbox" id="ac"><span>I have reviewed all ${c.modules.length} modules, the question bank and the answer key, and approve Revision ${c.revision} for issue.</span></label><button class="btn" id="ap">Approve and issue</button>` : ''}`}</div>
+      <div class="panel"><h2>Review and approval</h2>${approved ? `<p><span class="pill complete">Approved and issued</span></p><p>Approved by <b>${esc(s.approved_by)}</b>${s.approved_role ? ', ' + esc(s.approved_role) : ''} on ${fDT(s.approved_at)}. Issued ${fDT(s.issued_at)}.</p>${isOwner() ? '<button class="btn quiet small" id="wd">Withdraw the alert</button>' : ''}`
+        : `<p><span class="pill under_review">${s.status === 'withdrawn' ? 'Withdrawn' : 'Awaiting review'}</span></p><p class="muted">The alert link stays inactive until Safety Simplified has read the alert and the key questions below and approved them. The approval is recorded and printed in the HSE evidence pack.</p>
+          ${isOwner() ? `<div class="row">${field('Approved by', input('an', ''), 'name of the person who reviewed it')}${field('Position', input('ar', ''), 'for example CMIOSH, Safety Simplified Ltd')}</div><label class="check" style="margin-bottom:1rem"><input type="checkbox" id="ac"><span>I have reviewed the alert, the key questions and the answer key, and approve Revision ${c.revision} for issue.</span></label><button class="btn" id="ap">Approve and issue</button>` : ''}`}</div>
       ${isAdmin() ? `<div class="panel"><h2>Settings</h2><div class="row">${field('Complete by', input('due', s.due_date, 'date'), 'anyone not complete after this shows as overdue')}${field('Expected number of people', input('exp', s.expected || '', 'number'))}</div>
         ${field('Sites people can choose', `<textarea id="sites" rows="3">${esc(ov.sites.join('\n'))}</textarea>`, 'one per line')}<button class="btn ghost" id="ss">Save settings</button></div>` : ''}
-      <h2>Modules</h2>${c.modules.map(m => `<details class="panel"><summary><b>Module ${m.n}: ${esc(m.title)}</b> <span class="muted small">about ${m.mins} minutes</span></summary><div class="co-mod" style="box-shadow:none;border:0;padding:12px 0 0;max-width:760px">${moduleHtml(m)}</div></details>`).join('')}
+      <h2>The alert</h2><div class="co-mod" style="max-width:820px">${moduleHtml(c.modules[0])}</div>
       <h2>Declaration</h2><div class="decl" style="max-width:760px">${esc(c.declaration)}</div>
-      <h2>Question bank and answer key</h2><p class="muted">${c.bank.length} questions. Each paper has ${c.questions_per_attempt}: all ${c.bank.filter(b => b.critical).length} safety-critical questions plus ${c.questions_per_attempt - c.bank.filter(b => b.critical).length} drawn from the rest. Pass mark ${c.pass_mark}% with every safety-critical question correct. After ${c.attempts_before_lock} failed attempts the assessment locks until a supervisor records additional instruction.</p>
-      ${c.bank.map(b => `<div class="bankq"><b>${b.id}${b.critical ? ' <span class="pill no">Safety-critical</span>' : ''} <span class="muted small">Module ${b.module}${b.kind === 'scenario' ? ' · site scenario' : ''}</span></b><div style="margin-top:.3rem">${esc(b.q)}</div>
+      <h2>Key questions and answer key</h2><p class="muted">All ${c.bank.length} are asked every time and all must be answered correctly. After ${c.attempts_before_lock} failed attempts the questions lock until a supervisor records that they have gone through the alert with the operative in person.</p>
+      ${c.bank.map(b => `<div class="bankq"><b>${b.id}</b><div style="margin-top:.3rem">${esc(b.q)}</div>
         <ol>${b.options.map((o, i) => `<li class="${i === b.a ? 'right' : ''}">${esc(o)}${i === b.a ? ' (correct)' : `<span>Why it is wrong: ${esc(b.wrong[i])}</span>`}</li>`).join('')}</ol><div class="muted small"><b>Explanation:</b> ${esc(b.why)}</div></div>`).join('')}`);
     const on = (sel, fn) => { const el = document.getElementById(sel); if (el) el.onclick = fn; };
     const v = id => document.getElementById(id).value;
-    on('ap', async () => { try { await api('/course/approve', { body: { name: v('an'), role: v('ar'), confirmed: document.getElementById('ac').checked } }); await coursePage(); flash('Approved. The course link is now live.'); } catch (e) { flash(e.message, 'err'); } });
-    on('wd', async () => { if (confirm('Withdraw the course? The link will stop working until it is approved again.')) { await api('/course/withdraw', { method: 'POST' }); coursePage(); } });
+    on('ap', async () => { try { await api('/course/approve', { body: { name: v('an'), role: v('ar'), confirmed: document.getElementById('ac').checked } }); await coursePage(); flash('Approved. The alert link is now live.'); } catch (e) { flash(e.message, 'err'); } });
+    on('wd', async () => { if (confirm('Withdraw the alert? The link will stop working until it is approved again.')) { await api('/course/withdraw', { method: 'POST' }); coursePage(); } });
     on('ss', async () => { try { await api('/settings', { method: 'PUT', body: { due_date: v('due'), expected_headcount: v('exp'), sites: v('sites').split('\n') } }); flash('Settings saved.'); } catch (e) { flash(e.message, 'err'); } });
   }
 
@@ -271,9 +270,9 @@
     data = await api('/overview');
     const ok = data.state.status === 'issued', s = data.stats;
     setMain(`${notIssued(data.state)}<div class="ad-head"><div><h1>HSE evidence pack</h1><p class="muted">${esc(brand.name)}: Construction Dust and RPE Corrective Action Training Report</p></div></div>
-      <div class="panel"><h2>What is in it</h2><ol style="margin:.4rem 0 1rem;padding-left:1.3rem;line-height:1.7"><li>Background and reason for training</li><li>Course objectives and syllabus</li><li>Course revision and approval details</li><li>Training delivery methodology</li><li>Operative participation and completion figures</li><li>Examination results</li><li>Outstanding actions</li><li>Company monitoring and enforcement arrangements</li><li>Individual training records, with the question bank and answer key as an appendix</li></ol>
-        <p class="muted">The report is made fresh each time from the records as they stand: ${s.register} on the register, ${s.complete} complete, ${s.attempts} assessment attempt${s.attempts === 1 ? '' : 's'} submitted. Nothing is included that the records do not show.</p>
-        ${ok ? '<a class="btn" href="/api/admin/evidence-pack.pdf" target="_blank" rel="noopener">Download the evidence pack (PDF)</a>' : '<button class="btn" disabled>Available once the course is approved and issued</button>'}</div>
+      <div class="panel"><h2>What is in it</h2><ol style="margin:.4rem 0 1rem;padding-left:1.3rem;line-height:1.7"><li>Background and reason for training</li><li>Objectives and content</li><li>Revision and approval details</li><li>Training delivery methodology</li><li>Operative participation and completion figures</li><li>Key question results</li><li>Outstanding actions</li><li>Company monitoring and enforcement arrangements</li><li>Individual training records, with the key questions and answer key as an appendix</li></ol>
+        <p class="muted">The report is made fresh each time from the records as they stand: ${s.register} on the register, ${s.complete} complete, ${s.attempts} attempt${s.attempts === 1 ? '' : 's'} submitted. Nothing is included that the records do not show.</p>
+        ${ok ? '<a class="btn" href="/api/admin/evidence-pack.pdf" target="_blank" rel="noopener">Download the evidence pack (PDF)</a>' : '<button class="btn" disabled>Available once the alert is approved and issued</button>'}</div>
       <div class="panel"><h2>Other exports</h2><p class="muted">The company-wide summary on its own, the register as a spreadsheet, and each person's record from their page on the register.</p><div class="linkbox"><a class="btn ghost" href="/api/admin/summary.pdf" target="_blank" rel="noopener">Company summary (PDF)</a><a class="btn ghost" href="/api/admin/register.csv">Register (CSV)</a><a class="btn ghost" href="#/register">Individual records</a></div></div>
       <p class="split-note">${SPLIT}</p>`);
   }

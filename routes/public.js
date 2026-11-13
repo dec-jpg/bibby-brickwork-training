@@ -16,8 +16,8 @@ const MIN_MODULE_SECONDS = process.env.MIN_MODULE_SECONDS ? Number(process.env.M
 // The link must be the current one and the course must have been approved and issued.
 async function gate(req, res, next) {
   try {
-    if (req.params.link !== (await getSetting('link_token'))) return res.status(404).json({ error: 'This course link is not active. Ask your supervisor for the current link.' });
-    if ((await getSetting('course_status')) !== 'issued') return res.status(403).json({ error: 'This course has not been issued yet. Your supervisor will let you know when it is ready.' });
+    if (req.params.link !== (await getSetting('link_token'))) return res.status(404).json({ error: 'This link is not active. Ask your supervisor for the current link.' });
+    if ((await getSetting('course_status')) !== 'issued') return res.status(403).json({ error: 'This alert has not been issued yet. Your supervisor will let you know when it is ready.' });
     next();
   } catch (e) { next(e); }
 }
@@ -112,7 +112,7 @@ r.post('/:link/module', gate, need(async (req, res, s) => {
   if (action === 'open') { if (!mods[n]) mods[n] = { o: now }; }
   else {
     const opened = mods[n] && mods[n].o ? new Date(mods[n].o) : null;
-    if (!opened || (Date.now() - opened) / 1000 < MIN_MODULE_SECONDS) return res.status(400).json({ error: 'Read the module to the end before moving on.' });
+    if (!opened || (Date.now() - opened) / 1000 < MIN_MODULE_SECONDS) return res.status(400).json({ error: 'Read the alert to the end before moving on.' });
     mods[n] = { o: mods[n].o, c: now };
   }
   await q('UPDATE enrolments SET modules = $2 WHERE id = $1', [s.e.id, JSON.stringify(mods)]);
@@ -122,7 +122,7 @@ r.post('/:link/module', gate, need(async (req, res, s) => {
 // Start (or carry on with) an assessment. The paper is fixed when it is drawn, so reloading the page does not give a new one.
 r.post('/:link/attempt', gate, need(async (req, res, s) => {
   const st = C.stage(s.e, s.attempts);
-  if (st.key !== 'assessment') return res.status(400).json({ error: st.key === 'locked' ? 'Speak to your supervisor before you take the assessment again.' : st.key === 'review' ? 'Go back over the modules listed before you take the assessment again.' : 'The assessment is not available yet.' });
+  if (st.key !== 'assessment') return res.status(400).json({ error: st.key === 'locked' ? 'Speak to your supervisor before you answer the questions again.' : st.key === 'review' ? 'Read the alert again before you answer the questions again.' : 'Read the alert to the end first.' });
   let open = s.attempts.find(a => !a.submitted_at);
   if (!open) {
     const prev = s.attempts[s.attempts.length - 1];
@@ -148,7 +148,7 @@ r.post('/:link/attempt/submit', gate, need(async (req, res, s) => {
 }));
 
 r.post('/:link/declare', gate, need(async (req, res, s) => {
-  if (!s.e.passed_at) return res.status(400).json({ error: 'Pass the assessment first.' });
+  if (!s.e.passed_at) return res.status(400).json({ error: 'Answer the questions correctly first.' });
   if (s.e.completed_at) return res.json(view(s));
   const name = clean(req.body.name, 120);
   if (req.body.agreed !== true) return res.status(400).json({ error: 'Tick the box to confirm the declaration.' });
@@ -160,7 +160,7 @@ r.post('/:link/declare', gate, need(async (req, res, s) => {
 
 // Their own training record.
 r.get('/:link/record.pdf', gate, need(async (req, res, s) => {
-  if (!s.e.completed_at) return res.status(400).json({ error: 'Your record is available once the course is complete.' });
+  if (!s.e.completed_at) return res.status(400).json({ error: 'Your record is available once you have signed.' });
   const data = await pdf.personData(s.person.id);
   res.type('application/pdf').set('Content-Disposition', `inline; filename="training-record-${s.person.ref}.pdf"`);
   pdf.personRecord(data).pipe(res);

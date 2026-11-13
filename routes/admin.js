@@ -42,8 +42,8 @@ r.get('/course', any, wrap(async (req, res) => res.json({ course, state: await p
 // Safety Simplified reviews the course and approves it. Only then does the link go live.
 r.post('/course/approve', owner, wrap(async (req, res) => {
   const name = clean(req.body.name, 120), role = clean(req.body.role, 160);
-  if (!name) return res.status(400).json({ error: 'Enter the name of the person approving the course.' });
-  if (req.body.confirmed !== true) return res.status(400).json({ error: 'Tick the box to confirm the course has been reviewed.' });
+  if (!name) return res.status(400).json({ error: 'Enter the name of the person approving the alert.' });
+  if (req.body.confirmed !== true) return res.status(400).json({ error: 'Tick the box to confirm the alert has been reviewed.' });
   const now = new Date().toISOString();
   await setSetting('approved_by', name); await setSetting('approved_role', role || 'Safety Simplified Ltd'); await setSetting('approved_at', now);
   await setSetting('approved_revision', String(course.revision));
@@ -152,7 +152,7 @@ r.get('/summary.pdf', any, wrap(async (req, res) => {
   (await pdf.summary()).pipe(res);
 }));
 r.get('/evidence-pack.pdf', any, wrap(async (req, res) => {
-  if ((await getSetting('course_status')) !== 'issued') return res.status(400).json({ error: 'The evidence pack is available once the course has been approved and issued.' });
+  if ((await getSetting('course_status')) !== 'issued') return res.status(400).json({ error: 'The evidence pack is available once the alert has been approved and issued.' });
   res.type('application/pdf').set('Content-Disposition', 'inline; filename="bibby-brickwork-dust-rpe-corrective-action-training-report.pdf"');
   (await pdf.evidencePack()).pipe(res);
 }));
@@ -164,7 +164,7 @@ r.get('/register.csv', any, wrap(async (req, res) => {
   const d = await pdf.allData();
   res.type('text/csv').set('Content-Disposition', 'attachment; filename="bibby-brickwork-training-register.csv"').send(csv(d.rows.map(row), [
     { label: 'ID', key: 'ref' }, { label: 'Name', key: 'name' }, { label: 'Mobile', key: 'phone' }, { label: 'Employer', key: 'employer' }, { label: 'Site', key: 'site' }, { label: 'Role', key: 'role' },
-    { label: 'Issued', get: x => pdf.dt(x.issued_at) }, { label: 'Commenced', get: x => pdf.dt(x.started_at) }, { label: 'Modules completed', key: 'modules_done' },
+    { label: 'Issued', get: x => pdf.dt(x.issued_at) }, { label: 'Commenced', get: x => pdf.dt(x.started_at) }, { label: 'Alert read', get: x => (x.modules_done ? 'Yes' : 'No') },
     { label: 'Attempts', key: 'attempts' }, { label: 'Score', get: x => (x.score == null ? '' : `${x.score}/${x.total}`) }, { label: 'Training status', get: x => x.stage.label + (x.overdue ? ' (overdue)' : '') },
     { label: 'Declaration signed', get: x => pdf.dt(x.declared_at) }, { label: 'Completed', get: x => pdf.dt(x.completed_at) }, { label: 'Face-fit record held', get: x => (x.fit ? `${x.fit.make_model} (${pdf.day(x.fit.tested_on)})` : 'None entered') }, { label: 'Face-fit status', key: 'fit_status' },
   ]));
